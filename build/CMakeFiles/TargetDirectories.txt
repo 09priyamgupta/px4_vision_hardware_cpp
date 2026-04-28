@@ -1,0 +1,13 @@
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/uninstall.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/px4_vision_hardware_cpp_uninstall.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/vision_landing_cpp_exec.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/ament_cmake_python_copy_px4_vision_hardware_cpp.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/ament_cmake_python_copy_px4_vision_hardware_cpp_setup.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/ament_cmake_python_build_px4_vision_hardware_cpp_egg.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/test.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/edit_cache.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/rebuild_cache.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/list_install_components.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/install.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/install/local.dir
+/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles/install/strip.dir

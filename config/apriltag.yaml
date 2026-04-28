@@ -1,0 +1,19 @@
+/**:
+  ros__parameters:
+    family: "36h11"
+    
+    # Flattened Bundle Configuration
+    tag_bundles.bundle_names: ["landing_pad"]
+    tag_bundles.landing_pad.ids: [19, 23, 11]
+    
+    # Tag 19
+    tag_bundles.landing_pad.19.size: 0.05
+    tag_bundles.landing_pad.19.transform: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    
+    # Tag 23
+    tag_bundles.landing_pad.23.size: 0.40
+    tag_bundles.landing_pad.23.transform: [0.15, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    
+    # Tag 11
+    tag_bundles.landing_pad.11.size: 0.15
+    tag_bundles.landing_pad.11.transform: [-0.1, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]

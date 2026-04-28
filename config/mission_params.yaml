@@ -1,0 +1,28 @@
+/**:
+  ros__parameters:
+    # ==========================================
+    # MISSION & SAFETY MANAGER
+    # ==========================================
+    target_altitude: 4.0          # [m] Target height for takeoff and chase
+    takeoff_alt_threshold: 0.2    # [m] Distance to target_altitude before declaring success
+    tag_loss_timeout: 2.0         # [s] How long to wait before declaring tag lost
+    battery_failsafe_pct: 15.0    # [%] Minimum battery before triggering RTL/Landing
+
+    # ==========================================
+    # VISION GUIDANCE CONTROLLER (MPC)
+    # ==========================================
+    control_rate: 20.0            # [Hz] Frequency of the main control loops
+    mpc_horizon: 20               # [steps] Prediction horizon for MPC
+    max_rover_speed: 1.0          # [m/s] Clamping limit for estimated rover velocity
+    descent_rate: 0.3             # [m/s] Speed of vertical descent when landing is triggered
+    touchdown_altitude: 0.55      # [m] Altitude at which the drone cuts motors / declares LANDED
+    yaw_p_gain: 0.6               # [float] Proportional gain for yaw alignment
+    yaw_rate_limit: 0.4           # [rad/s] Maximum yaw rotation speed
+
+    # ==========================================
+    # PERCEPTION & LANDING DIRECTOR
+    # ==========================================
+    perception_rate: 30.0         # [Hz] Rate for vision nodes (match this to camera FPS)
+    vision_timeout: 0.5           # [s] Max time without a frame before declaring tag lost
+    tag_switch_altitude: 0.60     # [m] Altitude at which the director switches from Bundle to small Tag
+    bundle_ids: [19, 11, 23]      # [list] The AprilTag IDs that make up your landing pad bundle

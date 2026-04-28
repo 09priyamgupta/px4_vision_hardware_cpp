@@ -1,0 +1,18 @@
+/**:
+  ros__parameters:
+    frames:
+      world: map
+
+      # Drone
+      drone: base_link
+      camera: x500_mono_cam_down_0/camera_link/imager
+
+      # AprilTag (Now points to the bundle!)
+      tag: active_landing_target
+
+      # Rover
+      rover_odom: r1_rover/odom
+      rover_base: r1_rover/base_link
+
+      # Relative frame
+      rover_relative: rover_relative
