@@ -3,6 +3,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/vision_landing_cpp_exec.dir/src/main.cpp.o.d"
   "CMakeFiles/vision_landing_cpp_exec.dir/src/mission_executor.cpp.o"
   "CMakeFiles/vision_landing_cpp_exec.dir/src/mission_executor.cpp.o.d"
+  "CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o"
+  "CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o.d"
   "CMakeFiles/vision_landing_cpp_exec.dir/src/vision_landing_mode.cpp.o"
   "CMakeFiles/vision_landing_cpp_exec.dir/src/vision_landing_mode.cpp.o.d"
   "vision_landing_cpp_exec"

@@ -9,6 +9,7 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <px4_msgs/msg/vehicle_odometry.hpp>
 #include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
@@ -73,14 +74,19 @@ class VisionLandingMode : public px4_ros2::ModeBase
         // --- PX4 Interface Setpoint Object ---
         std::shared_ptr<px4_ros2::TrajectorySetpointType> trajectory_setpoint_;
 
-        // --- ROS 2 Interfaces ---
+        // --- ROS 2 Subscribers ---
         rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr odom_sub_;
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr tag_pose_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr tag_visible_sub_;
         rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr mpc_cmd_sub_;
 
+        // --- ROS 2 Publishers ---
         rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mpc_state_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr debug_error_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr debug_ema_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr debug_kf_pub_;
 
+        // --- ROS 2 Service ---
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr landing_srv_;
 };
 

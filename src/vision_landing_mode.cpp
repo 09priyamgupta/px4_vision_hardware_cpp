@@ -24,6 +24,9 @@ VisionLandingMode::VisionLandingMode(rclcpp::Node & node)
 
     // -------------- ROS 2 Publishers -------------
     mpc_state_pub_ = node.create_publisher<std_msgs::msg::Float32MultiArray>("/mpc/state", 10);
+    debug_error_pub_ = node.create_publisher<std_msgs::msg::Float32>("/mpc/debug/errors", 10);
+    debug_ema_pub_ = node.create_publisher<std_msgs::msg::Float32MultiArray>("/mpc/debug/ema_vel", 10);
+    debug_kf_pub_ = node.create_publisher<std_msgs::msg::Float32MultiArray>("/mpc/debug/kf_state", 10);
 
     // -------------- ROS 2 Subscriptions & Services -------------
     auto qos = rclcpp::SensorDataQoS();
@@ -200,6 +203,21 @@ void VisionLandingMode::updateSetpoint(float dt_s)
     Eigen::Vector2f drone_in_tag_pos(drone_pos_ned_(0) - future_tag_north, drone_pos_ned_(1) - future_tag_east);
     float horiz_error = drone_in_tag_pos.norm();
 
+    // Publish Tracking Error
+    std_msgs::msg::Float32 error_msg;
+    error_msg.data = horiz_error;
+    debug_error_pub_->publish(error_msg);
+
+    // Publish Smoothed EMA Velocity [Vn, Ve]
+    std_msgs::msg::Float32MultiArray ema_msg;
+    ema_msg.data = {smoothed_tag_vel_(0), smoothed_tag_vel_(1)};
+    debug_ema_pub_->publish(ema_msg);
+
+    // Publish Internal Kalman Filter State [x, y, vx, vy]
+    std_msgs::msg::Float32MultiArray kf_msg;
+    kf_msg.data = {kf_x_(0), kf_x_(1), kf_x_(2), kf_x_(3)};
+    debug_kf_pub_->publish(kf_msg);
+
     // ------------------- Conditional Landing Logic -------------------
     float cmd_v_down = 0.0f; // Default Z-Velocity constraint (Hold Alt)
 
@@ -251,7 +269,7 @@ void VisionLandingMode::updateSetpoint(float dt_s)
     if (landing_triggered_) 
     {
         // Pure velocity downward for landing
-        sp.withVelocityZ(descent_rate_);
+        sp.withVelocityZ(cmd_v_down);
     } 
     else 
     {
@@ -259,14 +277,13 @@ void VisionLandingMode::updateSetpoint(float dt_s)
         sp.withPositionZ(-current_target_altitude_);
     }
 
-    // --- ENHANCED DEBUGGING --- 
-    // This logs EXACTLY what is being dispatched to PX4's internal FlightTask logic.
+    // --- DEBUGGING --- 
     RCLCPP_INFO_THROTTLE(node().get_logger(), *node().get_clock(), 500, 
         "[TRACKING SETPOINT] Vx(N): %.2f | Vy(E): %.2f | Z_pos: %.2f | Z_vel: %.2f | YawRate: %.2f", 
         cmd_v_north, 
         cmd_v_east, 
         (landing_triggered_ ? NAN : -current_target_altitude_), 
-        (landing_triggered_ ? descent_rate_ : NAN),
+        (landing_triggered_ ? cmd_v_down : NAN),
         yaw_rate_cmd);
 
     // Send the cleanly built struct to PX4!

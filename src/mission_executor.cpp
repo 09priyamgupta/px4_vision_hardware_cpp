@@ -11,6 +11,9 @@ MissionExecutor::MissionExecutor(px4_ros2::ModeBase & owned_mode)
         node_.declare_parameter("battery_failsafe_pct", 15.0);
     }
     double battery_failsafe = node_.get_parameter("battery_failsafe_pct").as_double();
+
+    // Initialize the ROS 2 publisher
+    state_pub_ = node_.create_publisher<std_msgs::msg::String>("mission/state", 10);
     
     RCLCPP_INFO(node_.get_logger(), "[EXECUTOR] Initialized. Battery Failsafe set to: %.1f%%", battery_failsafe);
 }
@@ -47,6 +50,9 @@ void MissionExecutor::runState(State state, px4_ros2::Result previous_result)
         return;
     }
 
+    // --- Publish state as a string ---
+    std_msgs::msg::String state_msg;
+
     switch (state)
     {
         // case State::TakingOff:
@@ -68,6 +74,9 @@ void MissionExecutor::runState(State state, px4_ros2::Result previous_result)
         case State::VisionLanding:
             RCLCPP_INFO(node_.get_logger(), "[EXECUTOR] Activating Custom Vision Landing Mode");
 
+            state_msg.data = "VisionLanding";
+            state_pub_->publish(state_msg);
+
             // Stays in this mode/state until the custom mode finishes and returns Success/failure
             scheduleMode(ownedMode().id(), [this](px4_ros2::Result result)
             {
@@ -78,6 +87,9 @@ void MissionExecutor::runState(State state, px4_ros2::Result previous_result)
         case State::Land:
             RCLCPP_INFO(node_.get_logger(), "[EXECUTOR] State: Landing...");
 
+            state_msg.data = "Land";
+            state_pub_->publish(state_msg);
+
             land([this](px4_ros2::Result result)
             {
                 runState(State::WaitUntilDisarmed, result);
@@ -86,6 +98,9 @@ void MissionExecutor::runState(State state, px4_ros2::Result previous_result)
 
         case State::WaitUntilDisarmed:
             RCLCPP_INFO(node_.get_logger(), "[EXECUTOR] -> Waiting for Disarm...");
+
+            state_msg.data = "WaitUntilDisarmed";
+            state_pub_->publish(state_msg);
 
             // Halts the executor until the flight controller confirms props are stopped
             waitUntilDisarmed([this](px4_ros2::Result result) 

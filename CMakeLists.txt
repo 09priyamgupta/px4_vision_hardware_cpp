@@ -17,6 +17,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(px4_ros2_cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 # Python dependencies
 find_package(ament_cmake_python REQUIRED)
@@ -28,6 +29,7 @@ add_executable(vision_landing_cpp_exec
   src/main.cpp
   src/mission_executor.cpp
   src/vision_landing_mode.cpp
+  src/search_landing_pad_mode.cpp
 )
 
 # 2. Tell CMake where to find your .hpp headers
@@ -44,6 +46,7 @@ ament_target_dependencies(vision_landing_cpp_exec
   geometry_msgs
   std_srvs
   px4_ros2_cpp
+  nav_msgs
 )
 
 # 4. Link Eigen3

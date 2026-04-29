@@ -4,6 +4,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <px4_ros2/components/mode_executor.hpp>
 #include <px4_ros2/components/mode.hpp>
+#include <std_msgs/msg/string.hpp>
 
 
 class MissionExecutor : public px4_ros2::ModeExecutorBase
@@ -31,6 +32,9 @@ class MissionExecutor : public px4_ros2::ModeExecutorBase
     private:
         // The main state machine runner, this will be called periodically by the ModeExecutorBase
         void runState(State state, px4_ros2::Result previous_result);
+
+        // ROS 2 Publisher
+        rclcpp::Publisher<std_msgs::msg::String>::SharedPtr state_pub_;
 
         rclcpp::Node & node_;
 };

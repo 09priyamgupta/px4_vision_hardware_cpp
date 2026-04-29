@@ -297,6 +297,30 @@ src/mission_executor.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vision_landing_cpp_exec.dir/build.make CMakeFiles/vision_landing_cpp_exec.dir/src/mission_executor.cpp.s
 .PHONY : src/mission_executor.cpp.s
 
+src/search_landing_pad_mode.o: src/search_landing_pad_mode.cpp.o
+.PHONY : src/search_landing_pad_mode.o
+
+# target to build an object file
+src/search_landing_pad_mode.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vision_landing_cpp_exec.dir/build.make CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o
+.PHONY : src/search_landing_pad_mode.cpp.o
+
+src/search_landing_pad_mode.i: src/search_landing_pad_mode.cpp.i
+.PHONY : src/search_landing_pad_mode.i
+
+# target to preprocess a source file
+src/search_landing_pad_mode.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vision_landing_cpp_exec.dir/build.make CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.i
+.PHONY : src/search_landing_pad_mode.cpp.i
+
+src/search_landing_pad_mode.s: src/search_landing_pad_mode.cpp.s
+.PHONY : src/search_landing_pad_mode.s
+
+# target to generate assembly for a file
+src/search_landing_pad_mode.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/vision_landing_cpp_exec.dir/build.make CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.s
+.PHONY : src/search_landing_pad_mode.cpp.s
+
 src/vision_landing_mode.o: src/vision_landing_mode.cpp.o
 .PHONY : src/vision_landing_mode.o
 
@@ -346,6 +370,9 @@ help:
 	@echo "... src/mission_executor.o"
 	@echo "... src/mission_executor.i"
 	@echo "... src/mission_executor.s"
+	@echo "... src/search_landing_pad_mode.o"
+	@echo "... src/search_landing_pad_mode.i"
+	@echo "... src/search_landing_pad_mode.s"
 	@echo "... src/vision_landing_mode.o"
 	@echo "... src/vision_landing_mode.i"
 	@echo "... src/vision_landing_mode.s"

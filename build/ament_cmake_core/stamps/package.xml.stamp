@@ -17,6 +17,7 @@
   <depend>std_srvs</depend>
   <depend>px4_ros2_cpp</depend>
   <depend>Eigen3</depend>
+  <depend>nav_msgs</depend>
 
   <!-- Python Packages -->
   <buildtool_depend>ament_cmake_python</buildtool_depend>

@@ -114,66 +114,43 @@ def generate_launch_description():
                         
     # Computes relative pose of the drone to the AprilTag
     apriltag_relative_pose_node = Node(
-        package='px4_vision_hardware_cpp',
-        executable='apriltag_relative_pose.py',
-        name='apriltag_relative_pose_node',
-        output='screen',
-        parameters=[
-                        frames_yaml, 
-                        mission_yaml,            # Injects bundle_ids
-                        {'use_sim_time': USE_SIM_TIME},
-                    ],
-    )
+                                        package='px4_vision_hardware_cpp',
+                                        executable='apriltag_relative_pose.py',
+                                        name='apriltag_relative_pose_node',
+                                        output='screen',
+                                        parameters=[
+                                                        frames_yaml, 
+                                                        mission_yaml,            # Injects bundle_ids
+                                                        {'use_sim_time': USE_SIM_TIME},
+                                                    ],
+                                    )
 
     # --- Mission Management & Control Nodes ---
-    # # High-level state machine and safety gatekeeper (Behavior Tree)
-    # offboard_experiment_manager_node = Node(
-    #                                             package='px4_vision_hardware_cpp',
-    #                                             executable='offboard_experiment_manager',
-    #                                             name='offboard_experiment_manager_node',
-    #                                             output='screen',
-    #                                             parameters=[
-    #                                                             frames_yaml,
-    #                                                             mission_yaml,            # Injects target_altitude, tag_loss_timeout, etc.
-    #                                                             {'use_sim_time': USE_SIM_TIME},
-    #                                                         ],
-    #                                         )
-    
-    # # Low-level MPC controller for chasing the rover and landing
-    # vision_guidance_controller_node = Node(
-    #                                             package='px4_vision_hardware_cpp',
-    #                                             executable='vision_guidance_controller',
-    #                                             name='vision_guidance_controller_node',
-    #                                             output='screen',
-    #                                             parameters=[
-    #                                                             frames_yaml,
-    #                                                             mission_yaml,            # Injects mpc_horizon, descent_rate, max_rover_speed, etc.
-    #                                                             {'use_sim_time': USE_SIM_TIME},
-    #                                                         ],
-    #                                         )
-    
+    # Low-level MPC controller for chasing the rover and landing
     mpc_solver_node = Node(
-        package='px4_vision_hardware_cpp',
-        executable='mpc_solver_node.py',
-        name='mpc_solver_node',
-        output='screen',
-        parameters=[
-            mission_yaml,
-            {'use_sim_time': USE_SIM_TIME},
-        ],
-    )
+                            package='px4_vision_hardware_cpp',
+                            executable='mpc_solver_node.py',
+                            name='mpc_solver_node',
+                            output='screen',
+                            parameters=[
+                                                frames_yaml, 
+                                                mission_yaml,
+                                                {'use_sim_time': USE_SIM_TIME},
+                                            ],
+                                        )
 
-    # C++ Node: The PX4 Interface (Executor + Vision Landing Mode)
+    # C++ Node: The PX4 Interface (Executor + Vision Landing Mode + Search Ladning Pad Mode)
     vision_landing_cpp_node = Node(
-        package='px4_vision_hardware_cpp',
-        executable='vision_landing_cpp_exec', 
-        name='vision_landing_control_node',
-        output='screen',
-        parameters=[
-            mission_yaml,
-            {'use_sim_time': USE_SIM_TIME},
-        ],
-    )
+                                    package='px4_vision_hardware_cpp',
+                                    executable='vision_landing_cpp_exec', 
+                                    name='vision_landing_control_node',
+                                    output='screen',
+                                    parameters=[
+                                        mission_yaml,
+                                        {'use_sim_time': USE_SIM_TIME},
+                                    ],
+                                )
+
                 
     # --- Debugging & Visualization Nodes ---
     # tag_rviz_markers_node = Node(

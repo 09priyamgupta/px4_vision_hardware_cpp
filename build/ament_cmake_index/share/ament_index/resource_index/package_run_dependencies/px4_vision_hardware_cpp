@@ -1,1 +1,1 @@
-rclcpp;px4_msgs;std_msgs;geometry_msgs;std_srvs;px4_ros2_cpp;Eigen3;rclpy;python3-numpy;python3-py-trees;python3-tf-transformations;ament_lint_auto;ament_lint_common
+rclcpp;px4_msgs;std_msgs;geometry_msgs;std_srvs;px4_ros2_cpp;Eigen3;nav_msgs;rclpy;python3-numpy;python3-py-trees;python3-tf-transformations;ament_lint_auto;ament_lint_common

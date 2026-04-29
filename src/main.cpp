@@ -1,6 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include "px4_vision_hardware_cpp/vision_landing_mode.hpp"
 #include "px4_vision_hardware_cpp/mission_executor.hpp"
+#include "px4_vision_hardware_cpp/search_landing_pad_mode.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -9,14 +10,23 @@ int main(int argc, char *argv[])
     // Create the shared ROS 2 node
     auto node = std::make_shared<rclcpp::Node>("vision_landing_control_node");
 
-    // 1. Instantiate the "Muscle" (The custom flight mode)
+    // Instantiate the Search Mode
+    SearchLandingPadMode search_mode(*node);
+
+    // Instantiate the "Muscle" (The custom flight mode)
     VisionLandingMode vision_mode(*node);
 
-    // 2. Instantiate the "Brain" (The state machine, passing it the mode)
+    // Instantiate the "Brain" (The state machine, passing it the mode)
     MissionExecutor executor(vision_mode);
 
-    // 3. Register the executor with the PX4 flight controller
-    if (!executor.doRegister()) {
+    if (!search_mode.doRegister()) {
+        RCLCPP_FATAL(node->get_logger(), "Failed to register Search Landing Pad Mode with PX4!");
+        return -1;
+    }
+
+    // Register the executor with the PX4 flight controller
+    if (!executor.doRegister()) 
+    {
         RCLCPP_FATAL(node->get_logger(), "Failed to register Vision Landing Mode with PX4!");
         return -1;
     }

@@ -49,11 +49,7 @@ class RoverRelativeStateNode(Node):
         # ---------------- State variables ----------------
         self.rover_pos_world = None
         self.rover_vel_world = None
-        self.rover_yaw_world = None
-
-        self.drone_pos_world = None
-        self.drone_vel_world = None
-        self.drone_yaw_world = None        
+        self.rover_yaw_world = None      
 
         # ---------------- TF Setup ----------------
         self.tf_buffer = Buffer()
@@ -68,16 +64,11 @@ class RoverRelativeStateNode(Node):
         self.create_subscription(VehicleOdometry, '/fmu/out/vehicle_odometry', self.drone_odom_callback, qos_profile)
 
         # ---------------- Publishers ----------------
+        self.drone_enu_pub = self.create_publisher(PoseStamped, '/debug/drone_pose_enu', qos_profile)
         self.relative_pose_pub = self.create_publisher(PoseStamped, '/rover/relative_pose', qos_profile)
         self.relative_yaw_pub = self.create_publisher(Float32, '/rover/relative_yaw', qos_profile)
         self.relative_vel_pub = self.create_publisher(TwistStamped, '/rover/relative_velocity', qos_profile)
 
-        # ---------------- Timer ----------------
-        self.declare_parameter('control_rate', 20.0)
-        control_rate = self.get_parameter('control_rate').value
-        dt = 1.0 / control_rate         # 20 Hz
-
-        self.timer = self.create_timer(dt, self.update)
         self.get_logger().info('[ROVER_RELATIVE] Rover Relative State Node has been started.')
 
 
@@ -112,76 +103,81 @@ class RoverRelativeStateNode(Node):
                 Z_enu = -Z_ned
         '''        
         # Position Conversion
-        self.drone_pos_world = np.array([
+        drone_pos_world = np.array([
                                             msg.position[1],   # East
                                             msg.position[0],   # North
                                             -msg.position[2]   # Up
                                         ])
 
         # Velocity Conversion
-        self.drone_vel_world = np.array([
+        drone_vel_world = np.array([
                                             msg.velocity[1],   # East
                                             msg.velocity[0],   # North
                                             -msg.velocity[2]   # Up
                                         ])
 
-        # Yaw Conversion
+        # Yaw Conversion (NED to ENU)
         q_ned = msg.q
         q_enu = [q_ned[1], q_ned[0], -q_ned[2], q_ned[3]]
 
         _, _, yaw_enu = euler_from_quaternion(q_enu)
-        self.drone_yaw_world = wrap_angle(yaw_enu)
+        drone_yaw_world = wrap_angle(yaw_enu)
 
-        t = TransformStamped()
-        t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = self.world_frame
-        t.child_frame_id = self.drone_frame
-        t.transform.translation.x = float(self.drone_pos_world[0])
-        t.transform.translation.y = float(self.drone_pos_world[1])
-        t.transform.translation.z = float(self.drone_pos_world[2])
-        t.transform.rotation.x = float(q_enu[0])
-        t.transform.rotation.y = float(q_enu[1])
-        t.transform.rotation.z = float(q_enu[2])
-        t.transform.rotation.w = float(q_enu[3])
-        self.tf_broadcaster.sendTransform(t)
-        
+        now = self.get_clock().now().to_msg()
 
-    # ----------------- Main Update Loop ----------------
-    def update(self):
-        '''
-            Main update loop that runs at 20 Hz. 
+        # --- Publish Drone ENU Pose ---
+        drone_pose_msg = PoseStamped()
+        drone_pose_msg.header.stamp = now
+        drone_pose_msg.header.frame_id = self.world_frame
+        drone_pose_msg.pose.position.x = float(drone_pos_world[0])
+        drone_pose_msg.pose.position.y = float(drone_pos_world[1])
+        drone_pose_msg.pose.position.z = float(drone_pos_world[2])
+        drone_pose_msg.pose.orientation.x = float(q_enu[0])
+        drone_pose_msg.pose.orientation.y = float(q_enu[1])
+        drone_pose_msg.pose.orientation.z = float(q_enu[2])
+        drone_pose_msg.pose.orientation.w = float(q_enu[3])
+        self.drone_enu_pub.publish(drone_pose_msg)
 
-            It looks up the TF from the world frame to the drone frame and the TF from the world frame to the rover odom frame, 
-            computes the relative pose and velocity of the rover w.r.t the drone, publishes them, and also broadcasts the TF from 
-            'drone_base_link' to 'rover_relative' representing the relative pose of the rover in the drone's body frame.
-        '''
-        if any (v is None for v in [self.rover_pos_world, self.rover_vel_world, self.drone_pos_world, self.drone_vel_world]):
+        # Broadcast Drone's World Pose to TF
+        t_drone = TransformStamped()
+        t_drone.header.stamp = now
+        t_drone.header.frame_id = self.world_frame
+        t_drone.child_frame_id = self.drone_frame
+        t_drone.transform.translation.x = float(drone_pos_world[0])
+        t_drone.transform.translation.y = float(drone_pos_world[1])
+        t_drone.transform.translation.z = float(drone_pos_world[2])
+        t_drone.transform.rotation.x = float(q_enu[0])
+        t_drone.transform.rotation.y = float(q_enu[1])
+        t_drone.transform.rotation.z = float(q_enu[2])
+        t_drone.transform.rotation.w = float(q_enu[3])
+        self.tf_broadcaster.sendTransform(t_drone)
+
+        # ------------- RELATIVE MATH (Event-Triggered) -------------
+
+        # Check if we have received at least one rover message yet
+        if self.rover_pos_world is None:
             return
         
         try:
-            # Look up TF from world → drone
             tf_world_drone = self.tf_buffer.lookup_transform(self.drone_frame, self.world_frame, rclpy.time.Time())
-
         except Exception as e:
             return
         
         q = tf_world_drone.transform.rotation
         R_world_drone = quaternion_matrix([q.x, q.y, q.z, q.w])[:3, :3]
 
-        # ---------------- Compute Relative Pose ----------------
-        p_rel_world = self.rover_pos_world - self.drone_pos_world
+        # Compute Relative Pose
+        p_rel_world = self.rover_pos_world - drone_pos_world
         p_rel_drone = R_world_drone @ p_rel_world
 
-        # ---------------- Compute Relative Velocity ----------------
-        v_rel_world = self.rover_vel_world - self.drone_vel_world
+        # Compute Relative Velocity
+        v_rel_world = self.rover_vel_world - drone_vel_world
         v_rel_drone = R_world_drone @ v_rel_world
 
-        # ---------------- Compute Relative Yaw ----------------
-        yaw_relative = wrap_angle(self.rover_yaw_world - self.drone_yaw_world)
+        # Compute Relative Yaw
+        yaw_relative = wrap_angle(self.rover_yaw_world - drone_yaw_world)
 
-        now = self.get_clock().now().to_msg()
-
-        # ---------------- Publish Pose (Rover relative to drone) ----------------
+        # Publish Pose (Rover relative to drone)
         pose = PoseStamped()
         pose.header.stamp = now
         pose.header.frame_id = self.drone_frame
@@ -191,7 +187,7 @@ class RoverRelativeStateNode(Node):
         pose.pose.orientation.w = 1.0
         self.relative_pose_pub.publish(pose)
 
-        # ---------------- Publish Velocity (Rover relative to drone) ----------------
+        # Publish Velocity (Rover relative to drone)
         vel = TwistStamped()
         vel.header = pose.header
         vel.twist.linear.x = v_rel_drone[0]
@@ -199,12 +195,12 @@ class RoverRelativeStateNode(Node):
         vel.twist.linear.z = v_rel_drone[2]
         self.relative_vel_pub.publish(vel)
 
-        # ---------------- Publish Relative Yaw ----------------
+        # Publish Relative Yaw
         yaw_msg = Float32()
         yaw_msg.data = yaw_relative
         self.relative_yaw_pub.publish(yaw_msg)
 
-        # ---------------- Broadcast TF ----------------
+        # Broadcast Relative TF
         tf_out = TransformStamped()
         tf_out.header = pose.header
         tf_out.child_frame_id = self.rover_relative_frame

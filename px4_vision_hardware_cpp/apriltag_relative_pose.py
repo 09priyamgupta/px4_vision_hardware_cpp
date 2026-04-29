@@ -56,45 +56,66 @@ class AprilTagRelativePose(Node):
         self.tag_map_pub = self.create_publisher(PoseStamped, '/landing/tag_pose_map', 10)
 
         # ---------------- Subscription ----------------
-        self.create_subscription(AprilTagDetectionArray, '/detections', self.tag_detections_callback, qos)
+        # Trigger AFTER the Landing Director has finished its logic and published a target
+        self.create_subscription(PoseStamped, '/landing_target_pose', self.target_pose_callback, qos)
 
         # ---------------- Timer ----------------
-        self.declare_parameter('perception_rate', 30.0)
-        perception_rate = self.get_parameter('perception_rate').value
-        dt = 1.0 / perception_rate
+        # self.declare_parameter('perception_rate', 30.0)
+        # perception_rate = self.get_parameter('perception_rate').value
+        # dt = 1.0 / perception_rate
 
-        self.timer = self.create_timer(dt, self.update)
+        # self.timer = self.create_timer(dt, self.update)
+
+        # A slow 10Hz watchdog just to handle the timeout logic
+        self.watchdog_timer = self.create_timer(0.1, self.watchdog_check)
+
         self.get_logger().info('AprilTag Relative Pose Node has been started.')
 
     
     # ---------------- Callbacks ----------------
-    def tag_detections_callback(self, msg: AprilTagDetectionArray):
+    def target_pose_callback(self, msg: PoseStamped):
         ''' 
-            If any tag from our bundle is seen, the bundle is considered visible.
+            Triggers only when the Landing Director publishes a valid target pose.
         '''
-        found_ids = [det.id for det in msg.detections]
+        self.tag_visible = True
+        self.last_tag_detection_time = self.get_clock().now()
 
-        # Find exactly which tags from our bundle are currently visible
-        visible_bundle_tags = [tag_id for tag_id in found_ids if tag_id in self.bundle_ids]
-        
-        # Check if any of our bundle IDs intersect with the found IDs
-        if any(tag_id in found_ids for tag_id in self.bundle_ids):
-            self.tag_visible = True
-            self.last_tag_detection_time = self.get_clock().now()
+        exact_time = msg.header.stamp  # Extract the perfect timestamp preserved by the Director
 
-            # self.get_logger().info(f"--- [VISION] Visible Bundle Tags: {visible_bundle_tags} ---", throttle_duration_sec=1.0)
+        # Publish tag visibility
+        tag_visible_msg = Bool()
+        tag_visible_msg.data = True
+        self.tag_visible_pub.publish(tag_visible_msg)
 
-        else:
-            self.tag_visible = False
+        try:
+            # FIX: Grab the latest TF instantly. We know it exists because the Director just broadcasted it!
+            transform = self.tf_buffer.lookup_transform(self.drone_frame, self.tag_frame, rclpy.time.Time())
+
+            tag_pose_msg = PoseStamped()
+            tag_pose_msg.header.stamp = exact_time # Keep the timestamp perfect for the C++ MPC!
+            tag_pose_msg.header.frame_id = self.drone_frame
+            tag_pose_msg.pose.position.x = transform.transform.translation.x
+            tag_pose_msg.pose.position.y = transform.transform.translation.y
+            tag_pose_msg.pose.position.z = transform.transform.translation.z
+            tag_pose_msg.pose.orientation = transform.transform.rotation
+
+            self.rel_pose_pub.publish(tag_pose_msg)
+            self.publish_tag_in_map(exact_time) 
+
+        except Exception as e:
+            pass
 
     
     # ----------------- Helper Functions ----------------     
-    def publish_tag_in_map(self):
+    def publish_tag_in_map(self, exact_time):
         '''
             Publish the AprilTag pose in the MAP frame as a PoseStamped message.
         '''
         try:
-            transform = self.tf_buffer.lookup_transform(self.world_frame, self.tag_frame, rclpy.time.Time())
+            transform = self.tf_buffer.lookup_transform(
+                self.world_frame, 
+                self.tag_frame, 
+                rclpy.time.Time())
 
             t = transform.transform.translation
 
@@ -109,62 +130,19 @@ class AprilTagRelativePose(Node):
             self.tag_map_pub.publish(msg)
 
         except Exception as e:
-            pass        
+            pass   
 
-    
-    # ----------------- Update Loop -----------------
-    def update(self):
-        '''
-            Lookup the transform:
-                apriltag --> base_link
-            
-            and publish it as a PoseStamped message.
-
-            Transform from apriltag frame to base_link frame gives the pose of
-            the drone relative to the AprilTag.
-        '''
-        # Publish tag visibility
-        tag_visible_msg = Bool()
-        tag_visible_msg.data = self.tag_visible
-        self.tag_visible_pub.publish(tag_visible_msg)
-
-        if not self.tf_buffer.can_transform(self.tag_frame, self.drone_frame, rclpy.time.Time()):
-            self.get_logger().debug(f"TF Wait: {self.tag_frame} to {self.drone_frame} not ready", throttle_duration_sec=1.0)
-            return
-        
-        # If no detections for vision_timeout seconds, consider tag not visible/lost
+    # This watchdog runs at 10Hz and checks if the tag has been lost for more than vision_timeout seconds.
+    def watchdog_check(self):
         dt = (self.get_clock().now() - self.last_tag_detection_time).nanoseconds * 1e-9
-        
-        if dt > self.vision_timeout:   # <--- REPLACED 1.0 HERE
+        if dt > self.vision_timeout and self.tag_visible:
             self.tag_visible = False
-            self.get_logger().warn(f"[VISION] Tag lost for {dt:.2f} seconds.", throttle_duration_sec=1.0)
-            return
-        
-        try:
-            # Look up transform: where is the tag relative to the drone?
-            # Target: base_link (Drone), Source: tag frame
-            transform = self.tf_buffer.lookup_transform(self.drone_frame, self.tag_frame, rclpy.time.Time())
-
-            # Convert TransformStamped to PoseStamped
-            tag_pose_msg = PoseStamped()
-            tag_pose_msg.header.stamp = self.get_clock().now().to_msg()
-            tag_pose_msg.header.frame_id = self.drone_frame
-
-            tag_pose_msg.pose.position.x = transform.transform.translation.x
-            tag_pose_msg.pose.position.y = transform.transform.translation.y
-            tag_pose_msg.pose.position.z = transform.transform.translation.z
-
-            tag_pose_msg.pose.orientation = transform.transform.rotation
-
-            # Publish the relative pose
-            self.rel_pose_pub.publish(tag_pose_msg)
-
-            # Also publish the tag pose in map frame
-            self.publish_tag_in_map()
-
-        except Exception as e:
-            self.get_logger().warn(f'Could not transform {self.tag_frame} to {self.drone_frame}: {e}')
-            return
+            
+            tag_visible_msg = Bool()
+            tag_visible_msg.data = False
+            self.tag_visible_pub.publish(tag_visible_msg)
+            
+            self.get_logger().warn(f"[VISION] Tag lost for {dt:.2f} seconds.", throttle_duration_sec=1.0)     
 
 
 # ------------------ Main Function ----------------

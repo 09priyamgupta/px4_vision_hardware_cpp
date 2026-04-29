@@ -111,11 +111,26 @@ CMakeFiles/vision_landing_cpp_exec.dir/src/vision_landing_mode.cpp.s: cmake_forc
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/vision_landing_cpp_exec.dir/src/vision_landing_mode.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/src/vision_landing_mode.cpp -o CMakeFiles/vision_landing_cpp_exec.dir/src/vision_landing_mode.cpp.s
 
+CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o: CMakeFiles/vision_landing_cpp_exec.dir/flags.make
+CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o: ../src/search_landing_pad_mode.cpp
+CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o: CMakeFiles/vision_landing_cpp_exec.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o -MF CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o.d -o CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o -c /home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/src/search_landing_pad_mode.cpp
+
+CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/src/search_landing_pad_mode.cpp > CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.i
+
+CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/src/search_landing_pad_mode.cpp -o CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.s
+
 # Object files for target vision_landing_cpp_exec
 vision_landing_cpp_exec_OBJECTS = \
 "CMakeFiles/vision_landing_cpp_exec.dir/src/main.cpp.o" \
 "CMakeFiles/vision_landing_cpp_exec.dir/src/mission_executor.cpp.o" \
-"CMakeFiles/vision_landing_cpp_exec.dir/src/vision_landing_mode.cpp.o"
+"CMakeFiles/vision_landing_cpp_exec.dir/src/vision_landing_mode.cpp.o" \
+"CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o"
 
 # External object files for target vision_landing_cpp_exec
 vision_landing_cpp_exec_EXTERNAL_OBJECTS =
@@ -123,13 +138,8 @@ vision_landing_cpp_exec_EXTERNAL_OBJECTS =
 vision_landing_cpp_exec: CMakeFiles/vision_landing_cpp_exec.dir/src/main.cpp.o
 vision_landing_cpp_exec: CMakeFiles/vision_landing_cpp_exec.dir/src/mission_executor.cpp.o
 vision_landing_cpp_exec: CMakeFiles/vision_landing_cpp_exec.dir/src/vision_landing_mode.cpp.o
+vision_landing_cpp_exec: CMakeFiles/vision_landing_cpp_exec.dir/src/search_landing_pad_mode.cpp.o
 vision_landing_cpp_exec: CMakeFiles/vision_landing_cpp_exec.dir/build.make
-vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_fastrtps_c.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_introspection_c.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_fastrtps_cpp.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_introspection_cpp.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_cpp.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_generator_py.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_srvs__rosidl_typesupport_fastrtps_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_srvs__rosidl_typesupport_introspection_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_srvs__rosidl_typesupport_fastrtps_cpp.so
@@ -137,16 +147,12 @@ vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_srvs__rosidl_typesupport_int
 vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_srvs__rosidl_typesupport_cpp.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_srvs__rosidl_generator_py.so
 vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_ros2_cpp/lib/libpx4_ros2_cpp.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_fastrtps_c.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_introspection_c.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_fastrtps_cpp.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_introspection_cpp.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_cpp.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_generator_py.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_c.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_c.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_generator_c.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_generator_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libnav_msgs__rosidl_typesupport_fastrtps_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libnav_msgs__rosidl_typesupport_fastrtps_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libnav_msgs__rosidl_typesupport_introspection_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libnav_msgs__rosidl_typesupport_introspection_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libnav_msgs__rosidl_typesupport_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libnav_msgs__rosidl_generator_py.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_srvs__rosidl_typesupport_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_srvs__rosidl_generator_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/librclcpp.so
@@ -183,25 +189,44 @@ vision_landing_cpp_exec: /opt/ros/humble/lib/libstatistics_msgs__rosidl_typesupp
 vision_landing_cpp_exec: /opt/ros/humble/lib/libstatistics_msgs__rosidl_generator_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libtracetools.so
 vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_fastrtps_c.so
+vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_fastrtps_cpp.so
+vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_introspection_c.so
+vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_introspection_cpp.so
+vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_cpp.so
+vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_generator_py.so
+vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_c.so
+vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_generator_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libament_index_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_fastrtps_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_fastrtps_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libbuiltin_interfaces__rosidl_typesupport_fastrtps_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/librosidl_typesupport_fastrtps_c.so
-vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_fastrtps_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_fastrtps_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_fastrtps_cpp.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libbuiltin_interfaces__rosidl_typesupport_fastrtps_cpp.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/librosidl_typesupport_fastrtps_cpp.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libfastcdr.so.1.0.29
 vision_landing_cpp_exec: /opt/ros/humble/lib/librmw.so
-vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_introspection_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_introspection_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_introspection_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libbuiltin_interfaces__rosidl_typesupport_introspection_c.so
-vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_introspection_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_introspection_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_introspection_cpp.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libbuiltin_interfaces__rosidl_typesupport_introspection_cpp.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/librosidl_typesupport_introspection_cpp.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/librosidl_typesupport_introspection_c.so
-vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_cpp.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_cpp.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libbuiltin_interfaces__rosidl_typesupport_cpp.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/librosidl_typesupport_cpp.so
-vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_generator_py.so
-vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_typesupport_c.so
-vision_landing_cpp_exec: /home/priyam22/px4_ros2_ws/install/px4_msgs/lib/libpx4_msgs__rosidl_generator_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_generator_py.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_generator_py.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libnav_msgs__rosidl_typesupport_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_typesupport_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_typesupport_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libnav_msgs__rosidl_generator_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libgeometry_msgs__rosidl_generator_c.so
+vision_landing_cpp_exec: /opt/ros/humble/lib/libstd_msgs__rosidl_generator_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libbuiltin_interfaces__rosidl_generator_py.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libbuiltin_interfaces__rosidl_typesupport_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/libbuiltin_interfaces__rosidl_generator_c.so
@@ -210,9 +235,8 @@ vision_landing_cpp_exec: /opt/ros/humble/lib/librcpputils.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/librosidl_runtime_c.so
 vision_landing_cpp_exec: /opt/ros/humble/lib/librcutils.so
 vision_landing_cpp_exec: /usr/lib/x86_64-linux-gnu/libpython3.10.so
-vision_landing_cpp_exec: /opt/ros/humble/lib/libament_index_cpp.so
 vision_landing_cpp_exec: CMakeFiles/vision_landing_cpp_exec.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX executable vision_landing_cpp_exec"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX executable vision_landing_cpp_exec"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/vision_landing_cpp_exec.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

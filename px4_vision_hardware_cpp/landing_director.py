@@ -3,14 +3,12 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped, TransformStamped
 from tf2_ros import Buffer, TransformListener, TransformBroadcaster
+from apriltag_msgs.msg import AprilTagDetectionArray
 
 class LandingDirector(Node):
     def __init__(self):
         super().__init__('landing_director')
-        
-        # -------------------------------- Publisher --------------------------------
-        self.pose_pub = self.create_publisher(PoseStamped, '/landing_target_pose', 10)
-        
+              
         # ------------------------------- TF2 Setup -------------------------------
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -22,17 +20,15 @@ class LandingDirector(Node):
         self.declare_parameter('frames.camera', 'x500_mono_cam_0/camera_link/imager_optical')
         self.camera_frame = self.get_parameter('frames.camera').value
         
-        # ---------------------- Timer Parameters ----------------------
-        self.declare_parameter('perception_rate', 30.0)
-        perception_rate = self.get_parameter('perception_rate').value
-        dt = 1.0 / perception_rate
-
-        # Timer to run the logic loop
-        self.timer = self.create_timer(dt, self.timer_callback)
-        
         # --------------------- Switching Threshold (in meters) ---------------------
         self.declare_parameter('tag_switch_altitude', 0.60)
         self.switch_altitude = self.get_parameter('tag_switch_altitude').value
+
+        # -------------------------------- Publisher --------------------------------
+        self.pose_pub = self.create_publisher(PoseStamped, '/landing_target_pose', 10)
+
+        # -------------------------------- Subscriber --------------------------------
+        self.create_subscription(AprilTagDetectionArray, '/detections', self.detections_callback, 10)
         
         self.get_logger().info(f"Landing Director Node Started using {self.camera_frame}. Waiting for tags...")
 
@@ -60,19 +56,20 @@ class LandingDirector(Node):
             
         except Exception as e:
             return None
+        
+    
+    # ---------------------- Callbacks ----------------------
+    def detections_callback(self, msg: AprilTagDetectionArray):
+        '''
+            This callback is triggered whenever new AprilTag detections are received.
+        '''
+        exact_time = msg.header.stamp
 
-    # ---------------------- Main Logic Loop ----------------------
-    def timer_callback(self):
         # Fetch ALL transforms for logging
         bundle_pose = self.get_transform('landing_pad')
         tag_19_pose = self.get_transform('tag36h11:19')
 
-        # Safely format Z-distances for the terminal (handles missing tags gracefully)
-        z_b  = f"{bundle_pose.pose.position.z:.3f}m" if bundle_pose else "N/A"
-        z_19 = f"{tag_19_pose.pose.position.z:.3f}m" if tag_19_pose else "N/A"
-
         active_pose = None
-        active_target = "None" 
 
         # Decision Logic
         if bundle_pose is not None:
@@ -102,14 +99,13 @@ class LandingDirector(Node):
         elif tag_19_pose is not None:
             self.pose_pub.publish(tag_19_pose)
             active_pose = tag_19_pose
-            active_target = "Tag 19 (Fallback)"
 
         # Broadcasting the TF frame of detected AprilTag Bundle
         if active_pose is not None:
             self.pose_pub.publish(active_pose)
 
             t = TransformStamped()
-            t.header.stamp = self.get_clock().now().to_msg()
+            t.header.stamp = exact_time
             
             # Parent is the camera, Child is our new dynamic target
             t.header.frame_id = self.camera_frame
@@ -121,9 +117,6 @@ class LandingDirector(Node):
             t.transform.rotation = active_pose.pose.orientation
             
             self.tf_broadcaster.sendTransform(t)
-
-        log_msg = f"[Publishing: {active_target:^17}] Z-Distances -> Bundle: {z_b:>6} | Tag 19: {z_19:>6}"
-        # self.get_logger().info(log_msg, throttle_duration_sec=1.0)
 
 
 # ---------------------- Main Function ----------------------
