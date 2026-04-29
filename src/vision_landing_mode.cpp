@@ -10,10 +10,16 @@ VisionLandingMode::VisionLandingMode(rclcpp::Node & node)
     trajectory_setpoint_ = std::make_shared<px4_ros2::TrajectorySetpointType>(*this);
 
     // Load Parameters from config yaml file (with defaults)
-    node.get_parameter_or("target_altitude", chase_altitude_, 4.0f);
-    node.get_parameter_or("descent_rate", descent_rate_, 0.3f);
-    node.get_parameter_or("touchdown_altitude", touchdown_altitude_, 0.55f);
-    node.get_parameter_or("max_rover_speed", max_rover_speed_, 1.0f);
+    if (!node.has_parameter("target_altitude")) node.declare_parameter("target_altitude", 4.0);
+    if (!node.has_parameter("descent_rate")) node.declare_parameter("descent_rate", 0.3);
+    if (!node.has_parameter("touchdown_altitude")) node.declare_parameter("touchdown_altitude", 0.55);
+    if (!node.has_parameter("max_rover_speed")) node.declare_parameter("max_rover_speed", 1.0);
+
+    // Fetch the values
+    chase_altitude_ = static_cast<float>(node.get_parameter("target_altitude").as_double());
+    descent_rate_ = static_cast<float>(node.get_parameter("descent_rate").as_double());
+    touchdown_altitude_ = static_cast<float>(node.get_parameter("touchdown_altitude").as_double());
+    max_rover_speed_ = static_cast<float>(node.get_parameter("max_rover_speed").as_double());
 
     // Initialize Kalman Filter Matrices
     H_kf_ << 1.0f, 0.0f, 0.0f, 0.0f,
@@ -98,7 +104,8 @@ void VisionLandingMode::tag_cb(const geometry_msgs::msg::PoseStamped::SharedPtr 
     // Calculate Absolute Tag Position
     Eigen::Vector2f tag_abs_ned = Eigen::Vector2f(drone_pos_ned_(0) + v_ned(0), drone_pos_ned_(1) + v_ned(1));
 
-    if (!kf_initialized_) {
+    if (!kf_initialized_) 
+    {
         kf_x_ << tag_abs_ned(0), tag_abs_ned(1), 0.0f, 0.0f;
         kf_initialized_ = true;
         return;
@@ -116,7 +123,8 @@ void VisionLandingMode::tag_cb(const geometry_msgs::msg::PoseStamped::SharedPtr 
 
 void VisionLandingMode::mpc_cmd_cb(const std_msgs::msg::Float32MultiArray::SharedPtr msg) 
 {
-    if (msg->data.size() >= 2) {
+    if (msg->data.size() >= 2) 
+    {
         mpc_vel_cmd_(0) = msg->data[0]; // cmd_v_north
         mpc_vel_cmd_(1) = msg->data[1]; // cmd_v_east
     }
@@ -126,13 +134,15 @@ void VisionLandingMode::mpc_cmd_cb(const std_msgs::msg::Float32MultiArray::Share
 // ------------------------------------------------------------------------
 // ------------------------ Mode Lifecycle Callbacks ------------------------
 // ------------------------------------------------------------------------
-void VisionLandingMode::onActivate() {
+void VisionLandingMode::onActivate() 
+{
     RCLCPP_INFO(node().get_logger(), "[VISION MODE] Active! Assuming control.");
     kf_initialized_ = false;
     current_target_altitude_ = chase_altitude_;
 }
 
-void VisionLandingMode::onDeactivate() {
+void VisionLandingMode::onDeactivate() 
+{
     RCLCPP_WARN(node().get_logger(), "[VISION MODE] Deactivated.");
 }
 
@@ -189,7 +199,8 @@ void VisionLandingMode::updateSetpoint(float dt_s)
     float lead_offset = std::hypot(offset_north, offset_east);
     float max_allowed_offset = fov_radius * 0.7f;
     
-    if (lead_offset > max_allowed_offset) {
+    if (lead_offset > max_allowed_offset) 
+    {
         float scale = max_allowed_offset / lead_offset;
         offset_north *= scale;
         offset_east *= scale;
