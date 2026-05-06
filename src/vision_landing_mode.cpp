@@ -6,10 +6,17 @@
 VisionLandingMode::VisionLandingMode(rclcpp::Node & node)
 : ModeBase(node, Settings{"Vision Landing Mode"})
 {
-    // Setup the Setpoint Type (Tells PX4 we will send Trajectory setpoints)
+    // --------------------- Setup PX4 Setpoint Interfaces ---------------------
+    // TrajectorySetpoint is used for high-frequency MPC velocity tracking.
     trajectory_setpoint_ = std::make_shared<px4_ros2::TrajectorySetpointType>(*this);
 
-    // Load Parameters from config yaml file (with defaults)
+    // GotoSetpoint is used for smooth position holds when safety hover is triggered.
+    _goto_setpoint_ = std::make_shared<px4_ros2::GotoSetpointType>(*this); 
+
+    // ManualControlInput allows us to read RC stick inputs during fallback states.
+    _manual_control_input_ = std::make_shared<px4_ros2::ManualControlInput>(*this);
+
+    // -------- Load Parameters from config yaml file (with defaults) --------
     if (!node.has_parameter("target_altitude")) node.declare_parameter("target_altitude", 4.0);
     if (!node.has_parameter("descent_rate")) node.declare_parameter("descent_rate", 0.3);
     if (!node.has_parameter("touchdown_altitude")) node.declare_parameter("touchdown_altitude", 0.55);
@@ -21,12 +28,14 @@ VisionLandingMode::VisionLandingMode(rclcpp::Node & node)
     touchdown_altitude_ = static_cast<float>(node.get_parameter("touchdown_altitude").as_double());
     max_rover_speed_ = static_cast<float>(node.get_parameter("max_rover_speed").as_double());
 
-    // Initialize Kalman Filter Matrices
+    // --------------------- Initialize Kalman Filter Matrices ---------------------
+    // Observation Matrix (We only measure Position X and Y, not Velocity)
     H_kf_ << 1.0f, 0.0f, 0.0f, 0.0f,
              0.0f, 1.0f, 0.0f, 0.0f;
 
-    Q_kf_ = Eigen::Vector4f(0.05f, 0.05f, 0.005f, 0.005f).asDiagonal();
-    R_kf_ = Eigen::Vector2f(0.4f, 0.4f).asDiagonal();
+    // Process Noise (Q) and Measurement Noise (R)
+    Q_kf_ = Eigen::Vector4f(Config::KF_Q_POS, Config::KF_Q_POS, Config::KF_Q_VEL, Config::KF_Q_VEL).asDiagonal();
+    R_kf_ = Eigen::Vector2f(Config::KF_R_POS, Config::KF_R_POS).asDiagonal();
 
     // -------------- ROS 2 Publishers -------------
     mpc_state_pub_ = node.create_publisher<std_msgs::msg::Float32MultiArray>("/mpc/state", 10);
@@ -58,27 +67,28 @@ VisionLandingMode::VisionLandingMode(rclcpp::Node & node)
 // ------------------------------------------------------------------------
 void VisionLandingMode::odom_cb(const px4_msgs::msg::VehicleOdometry::SharedPtr msg) 
 {
+    // Update drone position in NED frame
     drone_pos_ned_ << msg->position[0], msg->position[1], msg->position[2];
 
-    // Store the exact IMU attitude to cancel out camera tilt later
+    // Store IMU orientation to compensate for camera tilt later
     drone_quat_ = Eigen::Quaternionf(msg->q[0], msg->q[1], msg->q[2], msg->q[3]);
 
-    // Fast Quaternion to Yaw conversion
+    // Fast Quaternion to Yaw (Heading) conversion
     drone_yaw_ned_ = atan2(2.0f * (msg->q[0]*msg->q[3] + msg->q[1]*msg->q[2]), 
                            1.0f - 2.0f * (msg->q[2]*msg->q[2] + msg->q[3]*msg->q[3]));
+    drone_yaw_ned_ = wrap_pi(drone_yaw_ned_);
 }
 
 void VisionLandingMode::tag_visible_cb(const std_msgs::msg::Bool::SharedPtr msg) 
 {
     tag_visible_ = msg->data;
+    // Reset KF flag if tag is lost so it re-initializes on the next detection
     if (!tag_visible_) kf_initialized_ = false;
 }
 
 void VisionLandingMode::landing_service_cb(const std_srvs::srv::Trigger::Request::SharedPtr request,
                                            std_srvs::srv::Trigger::Response::SharedPtr response) 
 {
-    (void)request;
-    
     landing_triggered_ = true;
     RCLCPP_INFO(node().get_logger(), "[VISION MODE] Landing Triggered! Initiating descent.");
     response->success = true;
@@ -86,10 +96,10 @@ void VisionLandingMode::landing_service_cb(const std_srvs::srv::Trigger::Request
 
 void VisionLandingMode::tag_cb(const geometry_msgs::msg::PoseStamped::SharedPtr msg) 
 {
-    // Port of your apriltag_pose_callback
+    // 1. Extract raw camera pose
     Eigen::Vector3f p_cam(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
     
-    // Camera to FRD body frame
+    // 2. Transform: Camera Frame to FRD (Front-Right-Down) Body Frame
     Eigen::Matrix3f R_cam_to_frd;
     R_cam_to_frd << -1, 0, 0,
                      0, 1, 0,
@@ -98,12 +108,14 @@ void VisionLandingMode::tag_cb(const geometry_msgs::msg::PoseStamped::SharedPtr 
     Eigen::Vector3f v_frd = R_cam_to_frd * p_cam;
     tag_rel_body_ << v_frd(0), v_frd(1);
 
-    // Apply the Drone's IMU Quaternion to instantly cancel out camera pitch/roll!
+    // 3. Transform: FRD to NED World Frame
+    // Applying the Drone's IMU Quaternion directly cancels out camera pitch/roll dynamics.
     Eigen::Vector3f v_ned = drone_quat_ * v_frd;
 
-    // Calculate Absolute Tag Position
+    // 4. Calculate Absolute Tag Position in NED
     Eigen::Vector2f tag_abs_ned = Eigen::Vector2f(drone_pos_ned_(0) + v_ned(0), drone_pos_ned_(1) + v_ned(1));
 
+    // 5. Initialize Kalman Filter if this is the first detection
     if (!kf_initialized_) 
     {
         kf_x_ << tag_abs_ned(0), tag_abs_ned(1), 0.0f, 0.0f;
@@ -111,23 +123,43 @@ void VisionLandingMode::tag_cb(const geometry_msgs::msg::PoseStamped::SharedPtr 
         return;
     }
 
-    // --- Kalman Filter Update (Executes when tag is seen) ---
+    // 6. Kalman Filter Update Step (Correction based on measurement)
     Eigen::Vector2f z_meas = tag_abs_ned;
     Eigen::Vector2f y_res = z_meas - (H_kf_ * kf_x_);
     Eigen::Matrix2f S = H_kf_ * kf_P_ * H_kf_.transpose() + R_kf_;
     Eigen::Matrix<float, 4, 2> K = kf_P_ * H_kf_.transpose() * S.inverse();
     
-    kf_x_ = kf_x_ + (K * y_res);
-    kf_P_ = (Eigen::Matrix4f::Identity() - K * H_kf_) * kf_P_;
+    kf_x_ = kf_x_ + (K * y_res);                                // Update state estimate
+    kf_P_ = (Eigen::Matrix4f::Identity() - K * H_kf_) * kf_P_;  // Update covariance
 }
 
 void VisionLandingMode::mpc_cmd_cb(const std_msgs::msg::Float32MultiArray::SharedPtr msg) 
 {
+    // Receive optimized velocity targets from the external MPC
     if (msg->data.size() >= 2) 
     {
-        mpc_vel_cmd_(0) = msg->data[0]; // cmd_v_north
-        mpc_vel_cmd_(1) = msg->data[1]; // cmd_v_east
+        mpc_vel_cmd_(0) = msg->data[0];     // cmd_v_north
+        mpc_vel_cmd_(1) = msg->data[1];     // cmd_v_east
     }
+}
+
+
+// ------------------------------------------------------------------------
+// ------------------------ Utility Functions -----------------------------
+// ------------------------------------------------------------------------
+float VisionLandingMode::wrap_pi(float angle)
+{
+    while (angle > M_PI) angle -= 2.0f * M_PI;
+    while (angle < -M_PI) angle += 2.0f * M_PI;
+    return angle;
+}
+
+float VisionLandingMode::with_deadband(float x, float db)
+{
+    // Applies a deadband and smoothly scales the remaining input
+    if (std::fabs(x) < db) return 0.0f;
+    const float s = (std::fabs(x) - db) / (1.0f - db);
+    return (x > 0.0f ? s : -s);
 }
 
 
@@ -139,6 +171,7 @@ void VisionLandingMode::onActivate()
     RCLCPP_INFO(node().get_logger(), "[VISION MODE] Active! Assuming control.");
     kf_initialized_ = false;
     current_target_altitude_ = chase_altitude_;
+    pos_sp_ned_ = drone_pos_ned_;   // Initialize safety hover setpoint to current location
 }
 
 void VisionLandingMode::onDeactivate() 
@@ -159,45 +192,68 @@ void VisionLandingMode::updateSetpoint(float dt_s)
         "[DEBUG ALTITUDE] Actual Alt: %.2fm | Target Alt: %.2fm | NED Z: %.2f", 
         actual_altitude, current_target_altitude_, drone_pos_ned_(2));
 
-    // Safety Hover if Tag is lost
+    // ---------------------------------------------------------
+    //      STATE 1: SAFETY HOVER (Tag Lost or Not Initialized)
+    // ---------------------------------------------------------
     if (!tag_visible_ || !kf_initialized_) 
     {
-        // Use the safe struct for hover to completely avoid the NaN bug!
-        px4_ros2::TrajectorySetpoint sp;
-        sp.withHorizontalVelocity(Eigen::Vector2f(0.0f, 0.0f)); // Brake and hold XY
-        sp.withPositionZ(-current_target_altitude_);            // Hold Altitude
+        // Read manual RC sticks for fallback control
+        float roll_cmd = with_deadband(_manual_control_input_->roll(), Config::RC_DEADBAND);
+        float pitch_cmd = with_deadband(_manual_control_input_->pitch(), Config::RC_DEADBAND);
+        float throttle_cmd = with_deadband(_manual_control_input_->throttle(), Config::RC_DEADBAND);
 
-        RCLCPP_DEBUG_THROTTLE(node().get_logger(), *node().get_clock(), 1000, 
-            "[DEBUG] Tag lost. Sending Safety Hover Setpoint.");
+        // Convert stick inputs to body-frame velocity commands
+        float cmd_v_x = roll_cmd * Config::RC_MAX_XY_VEL;     // Max vel in X (Forward/Back)
+        float cmd_v_y = pitch_cmd * Config::RC_MAX_XY_VEL;    // Max vel in Y (Left/Right)
 
-        trajectory_setpoint_->update(sp);
+        // Rotate body velocities to NED world frame based on current heading
+        float yaw_now = drone_yaw_ned_;
+        float cos_yaw = std::cos(yaw_now);
+        float sin_yaw = std::sin(yaw_now);
+        float v_n = cmd_v_x * cos_yaw - cmd_v_y * sin_yaw;
+        float v_e = cmd_v_x * sin_yaw + cmd_v_y * cos_yaw;
+
+        float v_d = -throttle_cmd * Config::RC_MAX_Z_VEL;       // Max vel in Z (Descent)
+
+        // Integrate manual commands into the hover position setpoint
+        yaw_sp_rad_ = wrap_pi(yaw_now + (_manual_control_input_->yaw() * Config::RC_MAX_YAW_RATE)*dt_s); 
+        pos_sp_ned_.x() += v_n * dt_s;
+        pos_sp_ned_.y() += v_e * dt_s;
+        pos_sp_ned_.z() += v_d * dt_s;
+
+        _goto_setpoint_->update(pos_sp_ned_, yaw_sp_rad_, Config::RC_MAX_XY_VEL, Config::RC_MAX_Z_VEL, Config::RC_MAX_YAW_RATE); 
         return;
     }
 
+    // ---------------------------------------------------------
+    //      STATE 2: ACTIVE TRACKING (Tag Visible)
+    // ---------------------------------------------------------
     // Run Kalman Filter Prediction Step
-    F_kf_(0, 2) = dt_s;
-    F_kf_(1, 3) = dt_s;
+    F_kf_(0, 2) = dt_s;                     // x += vx * dt
+    F_kf_(1, 3) = dt_s;                     // y += vy * dt
     kf_x_ = F_kf_ * kf_x_;
     kf_P_ = F_kf_ * kf_P_ * F_kf_.transpose() + Q_kf_;
 
-    // EMA Filter & Clamp Velocity
+    // Exponential Moving Average (EMA) for smoother velocity estimates
     Eigen::Vector2f raw_tag_vel(kf_x_(2), kf_x_(3));
-    float alpha = 0.15f;
+    float alpha = Config::EMA_ALPHA;
     smoothed_tag_vel_ = (alpha * raw_tag_vel) + ((1.0f - alpha) * smoothed_tag_vel_);
     
     float vn = std::clamp(smoothed_tag_vel_(0), -max_rover_speed_, max_rover_speed_);
     float ve = std::clamp(smoothed_tag_vel_(1), -max_rover_speed_, max_rover_speed_);
 
-    // 1. Calculate FOV radius and Lookahead
+    // Field of View (FOV) and Lookahead Safety Limits
+    // Calculate how far ahead the drone can look without losing the tag based on altitude
     float safe_alt = std::max(0.2f, actual_altitude);
-    float fov_radius = safe_alt * std::tan(20.0f * M_PI / 180.0f) * 0.8f;
-    float t_lookahead = std::max(0.0f, (actual_altitude - touchdown_altitude_) * 0.5f);
+    float fov_radius = safe_alt * std::tan(Config::FOV_ANGLE_DEG * M_PI / 180.0f) * Config::FOV_SAFE_SCALE; 
+    float t_lookahead = std::max(0.0f, (actual_altitude - touchdown_altitude_) * Config::LOOKAHEAD_SCALE);
     
     float offset_north = vn * t_lookahead;
     float offset_east = ve * t_lookahead;
     
+    // Clamp the lead offset so the predictive target never leaves the camera FOV
     float lead_offset = std::hypot(offset_north, offset_east);
-    float max_allowed_offset = fov_radius * 0.7f;
+    float max_allowed_offset = fov_radius * Config::MAX_LEAD_SCALE;
     
     if (lead_offset > max_allowed_offset) 
     {
@@ -206,11 +262,10 @@ void VisionLandingMode::updateSetpoint(float dt_s)
         offset_east *= scale;
     }
 
-    // 2. Apply predictive offset
+    // Calculate Predictive Error for the MPC
     float future_tag_north = kf_x_(0) + offset_north;
     float future_tag_east  = kf_x_(1) + offset_east;
 
-    // 3. Feed the MPC the predictive error
     Eigen::Vector2f drone_in_tag_pos(drone_pos_ned_(0) - future_tag_north, drone_pos_ned_(1) - future_tag_east);
     float horiz_error = drone_in_tag_pos.norm();
 
@@ -229,20 +284,23 @@ void VisionLandingMode::updateSetpoint(float dt_s)
     kf_msg.data = {kf_x_(0), kf_x_(1), kf_x_(2), kf_x_(3)};
     debug_kf_pub_->publish(kf_msg);
 
-    // ------------------- Conditional Landing Logic -------------------
+    // ---------------------------------------------------------
+    //      STATE 3: DESCENT / LANDING LOGIC
+    // ---------------------------------------------------------
     float cmd_v_down = 0.0f; // Default Z-Velocity constraint (Hold Alt)
 
     if (landing_triggered_) 
     {
-        float allowed_error = std::max(0.2f, 0.4f * actual_altitude);
+        // Only descend if the drone is horizontally aligned with the moving target
+        float allowed_error = std::max(Config::LANDING_ERR_MIN, Config::LANDING_ERR_SCALE * actual_altitude);
         if (horiz_error < allowed_error) 
         {
             current_target_altitude_ -= descent_rate_ * dt_s;
-            cmd_v_down = descent_rate_; // Set downward velocity constraint
+            cmd_v_down = descent_rate_;     // Apply downward velocity
         }
         current_target_altitude_ = std::max(touchdown_altitude_, current_target_altitude_);
 
-        if (actual_altitude <= (touchdown_altitude_ + 0.1f) && horiz_error < 0.15f) 
+        if (actual_altitude <= (touchdown_altitude_ + Config::TOUCHDOWN_ALT_MARGIN) && horiz_error < Config::TOUCHDOWN_ERR_MAX) 
         {
             RCLCPP_WARN(node().get_logger(), "TOUCHDOWN DETECTED! Completing Mode.");
             completed(px4_ros2::Result::Success); 
@@ -250,28 +308,32 @@ void VisionLandingMode::updateSetpoint(float dt_s)
         }
     }
 
-    // THE ROS 2 BRIDGE
+    // ---------------------------------------------------------
+    //          STATE 4: COMMAND DISPATCH (Bridging to PX4)
+    // ---------------------------------------------------------
+    // Send state to the external Python MPC
     std_msgs::msg::Float32MultiArray state_msg;
     state_msg.data = {drone_in_tag_pos(0), drone_in_tag_pos(1), vn, ve, actual_altitude};
     mpc_state_pub_->publish(state_msg);
 
-    // Grab the latest command we received from the Python node
+    // Fetch the latest optimized command from the MPC
     float cmd_v_north = mpc_vel_cmd_(0); 
     float cmd_v_east  = mpc_vel_cmd_(1);
 
-    // Yaw Control
+    // Yaw Control: Keep the drone facing the direction of the moving rover
     float yaw_rate_cmd = 0.0f;
-    if (std::hypot(vn, ve) > 0.15f) 
+    if (std::hypot(vn, ve) > Config::YAW_MOVE_THRESHOLD)     // Only yaw if the rover is actually moving
     {
         float target_yaw = atan2(ve, vn);
         float yaw_error = target_yaw - drone_yaw_ned_;
-        yaw_error = atan2(sin(yaw_error), cos(yaw_error)); // wrap to -pi to pi
-        yaw_rate_cmd = std::clamp(0.6f * yaw_error, -0.4f, 0.4f);
+        yaw_error = atan2(sin(yaw_error), cos(yaw_error));          // wrap to -pi to pi
+        
+        // P-controller for Yaw Rate
+        yaw_rate_cmd = std::clamp(Config::YAW_P_GAIN * yaw_error, -Config::YAW_RATE_MAX, Config::YAW_RATE_MAX);   
     }
 
-    // 7. PUBLISH TO PX4 (Using the TrajectorySetpoint Struct)
     px4_ros2::TrajectorySetpoint sp;
-    
+
     // Always command horizontal velocity and yaw rate
     sp.withHorizontalVelocity(Eigen::Vector2f(cmd_v_north, cmd_v_east));
     sp.withYawRate(yaw_rate_cmd);
@@ -298,5 +360,13 @@ void VisionLandingMode::updateSetpoint(float dt_s)
         yaw_rate_cmd);
 
     // Send the cleanly built struct to PX4!
+    // pos_sp_ned_.x() += cmd_v_north * dt_s;
+    // pos_sp_ned_.y() += cmd_v_east * dt_s;
+    // pos_sp_ned_.z() = -current_target_altitude_; // Always hold altitude in NED frame
+
+    // yaw_sp_rad_ = wrap_pi(drone_yaw_ned_ + yaw_rate_cmd * dt_s); // Integrate yaw rate to get yaw setpoint
+    // _goto_setpoint_->update(pos_sp_ned_, yaw_sp_rad_, max_rover_speed_, 1.0f, 0.5f); // Add yaw control to the hover setpoint
+    
+    // Send the finalized tracking command to PX4
     trajectory_setpoint_->update(sp);
 }

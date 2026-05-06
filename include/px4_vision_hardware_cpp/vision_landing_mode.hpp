@@ -4,10 +4,12 @@
 #include <rclcpp/rclcpp.hpp>
 #include <px4_ros2/components/mode.hpp>
 #include <px4_ros2/control/setpoint_types/experimental/trajectory.hpp>
+#include <px4_ros2/control/setpoint_types/goto.hpp>
 
 // ROS 2 Messages
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <px4_msgs/msg/vehicle_odometry.hpp>
+#include <px4_msgs/msg/manual_control_setpoint.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
@@ -16,7 +18,55 @@
 // Matrix Math
 #include <Eigen/Dense>
 
+/**
+ * @brief Custom PX4 Flight Mode for Vision-Based Tracking and Landing.
+ * 
+ * This class inherits from px4_ros2::ModeBase. It subscribes to AprilTag
+ * detections, filters the target's position/velocity using a Kalman Filter,
+ * communicates tracking errors to an external Model Predictive Controller (MPC),
+ * and feeds the resulting velocity commands into PX4 via Trajectory Setpoints.
+ */
 
+
+// ==============================================================================
+//                  TUNING CONSTANTS & HARDCODED VALUES
+// ==============================================================================
+namespace Config 
+{
+    // --- Kalman Filter Tuning ---
+    constexpr float KF_Q_POS = 0.05f;            // Process noise variance for Position
+    constexpr float KF_Q_VEL = 0.005f;           // Process noise variance for Velocity
+    constexpr float KF_R_POS = 0.4f;             // Measurement noise variance for Tag Detection
+
+    // --- RC Fallback Tuning (Safety Hover) ---
+    constexpr float RC_DEADBAND = 0.08f;         // Deadband for manual stick inputs
+    constexpr float RC_MAX_XY_VEL = 2.0f;        // Max horizontal speed (m/s) from sticks
+    constexpr float RC_MAX_Z_VEL = 1.0f;         // Max descent speed (m/s) from sticks
+    constexpr float RC_MAX_YAW_RATE = 0.5f;      // Max yaw rate (rad/s) from sticks
+
+    // --- Tracking & Prediction Tuning ---
+    constexpr float EMA_ALPHA = 0.15f;           // Exponential Moving Average weight for velocity smoothing
+    constexpr float FOV_ANGLE_DEG = 20.0f;       // Camera Field of View half-angle in degrees
+    constexpr float FOV_SAFE_SCALE = 0.8f;       // Usable fraction of the FOV (margin of safety)
+    constexpr float LOOKAHEAD_SCALE = 0.5f;      // Scales how many seconds ahead to look based on altitude difference
+    constexpr float MAX_LEAD_SCALE = 0.7f;       // Max allowed predictive lead as a fraction of the safe FOV radius
+    
+    // --- Auto-Yaw Control ---
+    constexpr float YAW_MOVE_THRESHOLD = 0.15f;  // Min rover speed (m/s) required to trigger auto-yaw tracking
+    constexpr float YAW_P_GAIN = 0.6f;           // Proportional gain for heading correction
+    constexpr float YAW_RATE_MAX = 0.4f;         // Maximum auto-yaw rate (rad/s)
+
+    // --- Landing Constraints ---
+    constexpr float LANDING_ERR_MIN = 0.2f;      // Minimum absolute horizontal error (m) tolerated to descend
+    constexpr float LANDING_ERR_SCALE = 0.4f;    // Altitude multiplier for acceptable horizontal error 
+    constexpr float TOUCHDOWN_ALT_MARGIN = 0.1f; // Altitude margin (m) above touchdown target to declare sequence complete
+    constexpr float TOUCHDOWN_ERR_MAX = 0.15f;   // Max horizontal error (m) acceptable for final touchdown check
+}
+
+
+// ==============================================================================
+//              Vision-Based Tracking and Landing Class
+// ==============================================================================
 class VisionLandingMode : public px4_ros2::ModeBase
 {
     public:
@@ -26,9 +76,10 @@ class VisionLandingMode : public px4_ros2::ModeBase
         void onActivate() override;
         void onDeactivate() override;
 
-        // PX4 calls this automatically when the mode is active.
-        // This is where the main control logic of the mode will be implemented and 
-        // it replaces the 20Hz control timer
+        /**
+         * @brief Core control loop, called automatically by PX4 at high frequency (e.g., 50Hz).
+         * @param dt_s Delta time in seconds since the last call.
+         */
         void updateSetpoint(float dt_s) override;
 
     private:
@@ -38,47 +89,62 @@ class VisionLandingMode : public px4_ros2::ModeBase
         void tag_visible_cb(const std_msgs::msg::Bool::SharedPtr msg);
         void mpc_cmd_cb(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
 
-        // Landing Service callback
+        // ------------------- Landing Service callback -------------------
         void landing_service_cb(const std_srvs::srv::Trigger::Request::SharedPtr request,
                             std_srvs::srv::Trigger::Response::SharedPtr response);
 
+        // ----------------------- Math Utilities ------------------------
+        float wrap_pi(float angle);                 // Wrap angle to [-pi, pi]
+        float with_deadband(float x, float db);     // Apply deadband to a value
+
         // ----------------------- State Variables ------------------------
-        Eigen::Vector3f drone_pos_ned_{0, 0, 0};
-        Eigen::Quaternionf drone_quat_{1.0f, 0.0f, 0.0f, 0.0f};
-        Eigen::Vector2f tag_rel_body_{0, 0};        // Front, Right
-        float drone_yaw_ned_ = 0.0f;
-        float current_target_altitude_ = 4.0f;
+        // Drone State
+        Eigen::Vector3f drone_pos_ned_{0, 0, 0};                // Current position in North-East-Down (NED) frame
+        Eigen::Quaternionf drone_quat_{1.0f, 0.0f, 0.0f, 0.0f}; // Current IMU orientation
+        float drone_yaw_ned_ = 0.0f;                            // Current heading in radians
         
-        bool tag_visible_ = false;
-        bool kf_initialized_ = false;
-        bool landing_triggered_ = false;
+        // Setpoint Tracking
+        Eigen::Vector3f pos_sp_ned_{Eigen::Vector3f::Zero()};   // Fallback Goto position setpoint
+        float current_target_altitude_ = 4.0f;                  // Dynamic altitude target (changes during descent)
+        float yaw_sp_rad_ = 0.0f;                               // Desired yaw setpoint
+        
+        // Mode Flags
+        bool tag_visible_ = false;       // True if the tag is currently in the camera FOV
+        bool kf_initialized_ = false;    // True if the Kalman filter has an initial state
+        bool landing_triggered_ = false; // True if the landing sequence has been initiated via ROS service
 
-        // --- MPC ---
-        Eigen::Vector2f mpc_vel_cmd_{0.0f, 0.0f};
+        // Target Tracking
+        Eigen::Vector2f tag_rel_body_{0, 0};        // Raw tag position relative to camera (Front, Right)
+        Eigen::Vector2f smoothed_tag_vel_ = Eigen::Vector2f::Zero(); // EMA smoothed velocity of the rover
 
-        // --- Kalman Filter (Eigen) ---
-        Eigen::Vector4f kf_x_ = Eigen::Vector4f::Zero(); // [x, y, vx, vy]
-        Eigen::Matrix4f kf_P_ = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f F_kf_ = Eigen::Matrix4f::Identity();
-        Eigen::Matrix<float, 2, 4> H_kf_;
-        Eigen::Matrix4f Q_kf_;
-        Eigen::Matrix2f R_kf_;
-        Eigen::Vector2f smoothed_tag_vel_ = Eigen::Vector2f::Zero();
+        // External Controller (MPC) Commands
+        Eigen::Vector2f mpc_vel_cmd_{0.0f, 0.0f};   // Velocity commands [V_north, V_east] received from Python MPC node
+        
+        // --- Kalman Filter Matrices (2D Position/Velocity tracking) ---
+        Eigen::Vector4f kf_x_ = Eigen::Vector4f::Zero(); // State Vector: [pos_x, pos_y, vel_x, vel_y]
+        Eigen::Matrix4f kf_P_ = Eigen::Matrix4f::Identity(); // State Covariance
+        Eigen::Matrix4f F_kf_ = Eigen::Matrix4f::Identity(); // State Transition Model (updated dynamically with dt)
+        Eigen::Matrix<float, 2, 4> H_kf_;                    // Observation Model
+        Eigen::Matrix4f Q_kf_;                               // Process Noise Covariance
+        Eigen::Matrix2f R_kf_;                               // Measurement Noise Covariance
 
-        // --- Parameters ---
-        float chase_altitude_ = 4.0f;
-        float descent_rate_ = 0.3f;
-        float touchdown_altitude_ = 0.55f;
-        float max_rover_speed_ = 1.0f;
+        // --- Mode Parameters ---
+        float chase_altitude_ = 4.0f;      // Default altitude to hold while tracking the rover
+        float descent_rate_ = 0.3f;        // Z-velocity (m/s) during the landing phase
+        float touchdown_altitude_ = 0.55f; // Altitude threshold to declare landing complete
+        float max_rover_speed_ = 1.0f;     // Safety clamp for velocity tracking
 
-        // --- PX4 Interface Setpoint Object ---
-        std::shared_ptr<px4_ros2::TrajectorySetpointType> trajectory_setpoint_;
+        // --- PX4 Interface Setpoint Objects ---
+        std::shared_ptr<px4_ros2::TrajectorySetpointType> trajectory_setpoint_; // For MPC velocity control
+        std::shared_ptr<px4_ros2::GotoSetpointType> _goto_setpoint_;            // For safety hover (position control)
+        std::shared_ptr<px4_ros2::ManualControlInput> _manual_control_input_;   // For RC stick fallbacks
 
         // --- ROS 2 Subscribers ---
         rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr odom_sub_;
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr tag_pose_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr tag_visible_sub_;
         rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr mpc_cmd_sub_;
+        rclcpp::Subscription<px4_msgs::msg::ManualControlSetpoint>::SharedPtr rc_stick_sub_;
 
         // --- ROS 2 Publishers ---
         rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mpc_state_pub_;

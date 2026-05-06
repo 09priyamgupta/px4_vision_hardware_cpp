@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdf version="1.9">
+
+  <model name="r1_rover_with_apriltag">
+    <static>false</static>
+
+    <!-- ================= R1 Rover ================= -->
+    <include>
+      <uri>model://r1_rover</uri>
+      <name>r1</name>
+      <pose>0 0 0 0 0 0</pose>
+    </include>
+
+    <!-- ================= AprilTag ================= -->
+    <!-- <include>
+      <uri>model://apriltag_1000mm</uri>
+      <name>apriltag</name> -->
+
+      <!-- Mounted on top of rover -->
+      <!-- <pose>0 0 0.35 0 0 0</pose>
+    </include> -->
+
+    <!-- ================= Fixed Joint ================= -->
+    <!-- <joint name="apriltag_fixed_joint" type="fixed">
+      <parent>r1::base_link</parent>
+      <child>apriltag::april_tag_link</child>
+    </joint> -->
+
+    <!-- Multiple Apriltag board -->
+    <link name="background_board">
+      <pose>0 0 0.35 0 0 0</pose>
+      <visual name="board_visual">
+        <geometry>
+          <box>
+            <size>0.5 0.8 0.01</size> </box>
+        </geometry>
+        <material>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+        </material>
+      </visual>
+      <collision name="board_collision">
+        <geometry>
+          <box>
+            <size>0.5 0.8 0.01</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="board_joint" type="fixed">
+      <parent>r1::base_link</parent>
+      <child>background_board</child>
+    </joint>
+
+    <include>
+      <uri>model://apriltag_36h11_23_400mm</uri>
+      <name>apriltag_large</name>
+      <pose>0 0.15 0.356 0 0 0</pose> </include>
+
+    <joint name="apriltag_large_joint" type="fixed">
+      <parent>background_board</parent>
+      <child>apriltag_large::apriltag_36h11_23_400mm_link</child>
+    </joint>
+
+    <include>
+      <uri>model://apriltag_36h11_11_150mm</uri>
+      <name>apriltag_medium</name>
+      <pose>0.1 -0.20 0.357 0 0 0</pose> </include>
+
+    <joint name="apriltag_medium_joint" type="fixed">
+      <parent>background_board</parent>
+      <child>apriltag_medium::apriltag_36h11_11_150mm_link</child>
+    </joint>
+
+    <include>
+      <uri>model://apriltag_36h11_19_50mm</uri>
+      <name>apriltag_small</name>
+      <pose>-0.1 -0.20 0.358 0 0 0</pose> </include>
+
+    <joint name="apriltag_small_joint" type="fixed">
+      <parent>background_board</parent>
+      <child>apriltag_small::apriltag_36h11_19_50mm_link</child>
+    </joint>
+
+  </model>
+
+</sdf>
