@@ -1,19 +1,28 @@
 /**:
   ros__parameters:
     family: "36h11"
+
+    # 1. Standalone Tags (for individual logging/comparison)
+    tag.ids: [19, 11, 23]
+    tag.frames: ["tag36h11:19", "tag36h11:11","tag36h11:23"]
+    tag.sizes: [0.03, 0.10, 0.22]
+
+    # tag.ids: [19]
+    # tag.frames: ["tag36h11:19"]
+    # tag.sizes: [0.03]
     
-    # Flattened Bundle Configuration
+    # 2. Flattened Bundle Configuration
     tag_bundles.bundle_names: ["landing_pad"]
-    tag_bundles.landing_pad.ids: [19, 23, 11]
+    tag_bundles.landing_pad.ids: [23, 11]
     
-    # Tag 19
-    tag_bundles.landing_pad.19.size: 0.05
-    tag_bundles.landing_pad.19.transform: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
-    
-    # Tag 23
-    tag_bundles.landing_pad.23.size: 0.40
-    tag_bundles.landing_pad.23.transform: [0.15, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
-    
-    # Tag 11
-    tag_bundles.landing_pad.11.size: 0.15
-    tag_bundles.landing_pad.11.transform: [-0.1, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    # Tag 23 (Large Tag) - Set as the absolute Center Origin (0,0)
+    tag_bundles.landing_pad.23.size: 0.22
+    tag_bundles.landing_pad.23.transform: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+    # Tag 11 (Medium Tag) - 20cm Right, 4.45cm Up
+    tag_bundles.landing_pad.11.size: 0.10
+    tag_bundles.landing_pad.11.transform: [0.201, -0.044, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+    # # Tag 19 (Small Tag) - 16.15cm Right, 4.15cm Down
+    # tag_bundles.landing_pad.19.size: 0.03
+    # tag_bundles.landing_pad.19.transform: [0.162, 0.041, 0.0, 0.0, 0.0, 0.0, 1.0]

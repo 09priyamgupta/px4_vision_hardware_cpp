@@ -1,10 +1,10 @@
 /**:
   ros__parameters:
     frames:
-      world: map
+      world: world
 
       # Drone
-      drone: base_link
+      drone: x500_2_priyam
       camera: x500_mono_cam_down_0/camera_link/imager
 
       # AprilTag (Now points to the bundle!)

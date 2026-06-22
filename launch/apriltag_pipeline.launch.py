@@ -25,9 +25,9 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
 
                 remappings=[
-                    ('image', 'x500/camera/image_raw'),
-                    ('camera_info', 'x500/camera/camera_info'),
-                    ('image_rect', 'x500/camera/image_rect'),
+                    ('image', '/camera/image_raw'),
+                    ('camera_info', '/camera/camera_info'),
+                    ('image_rect', '/camera/image_rect'),
                 ],
             ),
 
@@ -38,12 +38,12 @@ def generate_launch_description():
                 name='apriltag_node',
                 extra_arguments=[{'use_intra_process_comms': True}],
                 remappings=[
-                    ('image_rect', 'x500/camera/image_rect'),
-                    ('camera_info', 'x500/camera/camera_info'),
+                    ('image_rect', '/camera/image_rect'),
+                    ('camera_info', '/camera/camera_info'),
                 ],
 
                 parameters=[
-                                {'use_sim_time': True},
+                                {'use_sim_time': False},
 
                                 # ---- Tag config ----
                                 apriltag_yaml,
@@ -52,12 +52,25 @@ def generate_launch_description():
                                 {'pose_estimation_method': 'pnp'},
 
                                 # ---- Detector tuning ----
-                                {'detector.threads': 2},
-                                {'detector.decimate': 1.0},
+                                {'detector.threads': 4},
+                                {'detector.decimate': 1.0},     # 1.0
                                 {'detector.blur': 0.0},
                                 {'detector.refine': True},
-                                {'detector.sharpening': 0.25},
-                                {'max_hamming': 1},
+                                {'detector.sharpening': 0.5},
+                                {'max_hamming': 0},             # 1
+
+                                {'qos_overrides': 
+                                {
+                                    '/image_rect': 
+                                    {
+                                        'subscription': 
+                                        {
+                                            'reliability': 'best_effort',
+                                            'history': 'keep_last',
+                                            'depth': 1
+                                        }
+                                    }
+                                }}
 
                             ],
             ),

@@ -33,10 +33,9 @@ def generate_launch_description():
     # Global Launch Variables
     # =========================================================================
     # Set to False when deploying to physical hardware to use real system time instead of sim time
-    USE_SIM_TIME = True
+    USE_SIM_TIME = False
 
     # ----------------- Node Definitions -----------------
-
     # Static TF: Drone (base_link) -> Camera
     # Rotations align ROS (Z-up) to Camera Optical (Z-forward)
     static_camera_tf = Node(
@@ -44,8 +43,11 @@ def generate_launch_description():
                                 executable='static_transform_publisher',
                                 name='camera_tf',
                                 arguments=[
-                                            '0', '0', '-0.10',
-                                            '1.57079', '0', '3.14159',
+                                            '0.11', '0', '-0.03',
+                                            # '4.71238', '0', '3.14159',
+                                            # '0.7071068', '-0.7071068', '0.0', '0.0',
+                                            # '1.5708', '0.0', '3.14159',
+                                            '3.14159', '0.043', '3.14159', # Yaw, Pitch (Left/Right fix), Roll (Fwd/Back fix)
                                             drone_frame,
                                             camera_frame        
                                         ],
@@ -102,12 +104,12 @@ def generate_launch_description():
     # Landing Director: Switches between detecting the bundle vs single tag
     director_node = Node(
                             package='px4_vision_hardware_cpp',
-                            executable='landing_director.py',
+                            executable='landing_director',  
                             name='landing_director',
                             output='screen',
                             parameters=[
                                             frames_yaml, 
-                                            mission_yaml,            # Injects tag_switch_altitude
+                                            mission_yaml,
                                             {'use_sim_time': USE_SIM_TIME}
                                         ],
                         )
@@ -115,7 +117,7 @@ def generate_launch_description():
     # Computes relative pose of the drone to the AprilTag
     apriltag_relative_pose_node = Node(
                                         package='px4_vision_hardware_cpp',
-                                        executable='apriltag_relative_pose.py',
+                                        executable='apriltag_relative_pose', 
                                         name='apriltag_relative_pose_node',
                                         output='screen',
                                         parameters=[
@@ -153,30 +155,16 @@ def generate_launch_description():
 
                 
     # --- Debugging & Visualization Nodes ---
-    # tag_rviz_markers_node = Node(
-    #                                 package='px4_vision_hardware_cpp',
-    #                                 executable='tag_rviz_markers.py',
-    #                                 name='tag_rviz_markers_node',
-    #                                 output='screen',
-    #                                 parameters=[
-    #                                                 frames_yaml,
-    #                                                 mission_yaml,
-    #                                                 {'use_sim_time': USE_SIM_TIME},
-    #                                             ],
-    #                             )
-        
-    # Data logger for TF state + CSV output node
-    # tf_state_logger_node = Node(
-    #                         package='px4_vision_hardware_cpp',
-    #                         executable='tf_state_logger',
-    #                         name='tf_state_logger',
-    #                         output='screen',
-    #                         parameters=[
-    #                             mission_yaml,
-    #                             {'use_sim_time': USE_SIM_TIME},
-    #                             {'log_dir': '/home/priyam22/px4_ros2_ws/src/px4_vision_hardware_cpp/px4_logs'}
-    #                         ],
-    #                     )
+    # C++ Node: Autonomous Landing Data Logger
+    landing_data_logger_node = Node(
+                                    package='px4_vision_hardware_cpp',
+                                    executable='landing_data_logger',
+                                    name='landing_data_logger',
+                                    output='screen',
+                                    parameters=[
+                                        {'use_sim_time': USE_SIM_TIME},
+                                    ],
+                                )
     
     # =========================================================================
     # Launch Description Return
@@ -189,16 +177,14 @@ def generate_launch_description():
                                 apriltag_relative_pose_node,
 
                                 # Start State Estimation
-                                gps_rover_enu_node,
-                                rover_state_ekf_node,
-                                rover_relative_state_node,
+                                # gps_rover_enu_node,
+                                # rover_state_ekf_node,
+                                # rover_relative_state_node,
 
                                 # Start Mission Management & Control
-                                # offboard_experiment_manager_node,
-                                # vision_guidance_controller_node,
                                 vision_landing_cpp_node,
                                 mpc_solver_node,
+
                                 # Debugging Nodes
-                                # tag_rviz_markers_node,
-                                # tf_state_logger_node,
+                                landing_data_logger_node,
                             ])

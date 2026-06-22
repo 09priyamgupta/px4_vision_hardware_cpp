@@ -31,10 +31,11 @@ class MPCTracker:
         self.prev_u = cp.Parameter(self.nu)         # Previous control input (velocity coomand) for smoothness
 
         # --- Cost Weights ---
-        Q = np.eye(self.nx) * 14.0          # Position Error: Keep it moderate so it doesn't rush
-        R = np.eye(self.nu) * 8.0          # Velocity Effort: Penalize deviating from tag speed
-        R_diff = np.eye(self.nu) * 4.0    # Jerk Penalty: MASSIVE weight to ensure smooth braking
-        W_slack = 1000.0                   # Slack Penalty: Massive weight to enforce FOV bounds
+        Q = np.eye(self.nx) * 8.0          # Position Error: Keep it moderate so it doesn't rush
+        R = np.eye(self.nu) * 14.0           # Velocity Effort: Penalize deviating from tag speed
+        R_diff = np.eye(self.nu) * 10.0      # Jerk Penalty: MASSIVE weight to ensure smooth braking
+        W_slack = 1000.0                    
+        # Slack Penalty: Massive weight to enforce FOV bounds
 
         # --- Build the Problem ---
         constraints = [

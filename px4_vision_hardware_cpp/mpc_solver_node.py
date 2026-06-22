@@ -6,6 +6,7 @@ import numpy as np
 from std_msgs.msg import Float32MultiArray
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
+from rclpy.qos import qos_profile_sensor_data
 
 from px4_vision_hardware_cpp.utils.mpc_tracker import MPCTracker
 
@@ -29,11 +30,11 @@ class MpcSolverNode(Node):
         self.mpc = MPCTracker(horizon=horizon, dt=dt, fov_deg=40.0, altitude=altitude)
 
         # ROS 2 Bridge Pub/Sub
-        self.state_sub = self.create_subscription(Float32MultiArray, '/mpc/state', self.state_callback, 10)
+        self.state_sub = self.create_subscription(Float32MultiArray, '/mpc/state', self.state_callback, qos_profile_sensor_data)
         
-        self.cmd_pub = self.create_publisher(Float32MultiArray, '/mpc/command', 10)
-        self.drone_path_pub = self.create_publisher(Path, '/mpc/predicted_path', 10)
-        self.rover_path_pub = self.create_publisher(Path, '/mpc/rover_predicted_path', 10)
+        self.cmd_pub = self.create_publisher(Float32MultiArray, '/mpc/command', qos_profile_sensor_data)
+        # self.drone_path_pub = self.create_publisher(Path, '/mpc/predicted_path', 10)
+        # self.rover_path_pub = self.create_publisher(Path, '/mpc/rover_predicted_path', 10)
 
         self.get_logger().info("[MPC PYTHON] Solver Bridge Active. Waiting for C++ Mode...")
 
@@ -48,7 +49,7 @@ class MpcSolverNode(Node):
         tag_vel = np.array([msg.data[2], msg.data[3]])
         actual_altitude = msg.data[4]
 
-        # Call your cvxpy solver!
+        # Call your cvxpy solver
         vel_cmd = self.mpc.solve(current_pos, tag_vel, actual_altitude)
 
         self.get_logger().info(f"[MPC] Solved -> Vn: {vel_cmd[0]:.2f}, Ve: {vel_cmd[1]:.2f}", throttle_duration_sec=0.5)
@@ -59,26 +60,26 @@ class MpcSolverNode(Node):
         self.cmd_pub.publish(cmd_msg)
 
         # --- Publish Predicted Paths ---
-        try:
-            drone_pred, rover_pred = self.mpc.get_predictions()
+        # try:
+        #     drone_pred, rover_pred = self.mpc.get_predictions()
             
-            # Helper function to build Path messages
-            def build_path(points, frame_id="map"):
-                path = Path()
-                path.header.stamp = self.get_clock().now().to_msg()
-                path.header.frame_id = frame_id
-                for pt in points:
-                    pose = PoseStamped()
-                    pose.pose.position.x = float(pt[0])
-                    pose.pose.position.y = float(pt[1])
-                    pose.pose.position.z = float(actual_altitude) # Keep flat for visualization
-                    path.poses.append(pose)
-                return path
+        #     # Helper function to build Path messages
+        #     def build_path(points, frame_id="map"):
+        #         path = Path()
+        #         path.header.stamp = self.get_clock().now().to_msg()
+        #         path.header.frame_id = frame_id
+        #         for pt in points:
+        #             pose = PoseStamped()
+        #             pose.pose.position.x = float(pt[0])
+        #             pose.pose.position.y = float(pt[1])
+        #             pose.pose.position.z = float(actual_altitude) # Keep flat for visualization
+        #             path.poses.append(pose)
+        #         return path
 
-            self.drone_path_pub.publish(build_path(drone_pred, frame_id=self.world_frame))
-            self.rover_path_pub.publish(build_path(rover_pred, frame_id=self.world_frame))
-        except AttributeError:
-            self.get_logger().warn("mpc.get_predictions() not found or failed.", once=True)
+        #     self.drone_path_pub.publish(build_path(drone_pred, frame_id=self.world_frame))
+        #     self.rover_path_pub.publish(build_path(rover_pred, frame_id=self.world_frame))
+        # except AttributeError:
+        #     self.get_logger().warn("mpc.get_predictions() not found or failed.", once=True)
 
         
 # ----------------- MPC Solver Node ----------------
