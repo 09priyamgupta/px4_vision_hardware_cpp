@@ -780,6 +780,15 @@ colcon build --packages-select px4_vision_hardware_cpp
 - [ ] Non-flat landing surfaces (grass, obstacles)
 - [ ] Multi-drone scenarios
 - [ ] GPS-denied environments (vision-only flight)
+
+---
+
+## Author
+
+Priyam Gupta [![LinkedIn](https://img.shields.io/badge/LinkedIn-%230077B5.svg?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/priyam-gupta-5777b3190/)
+
+[![GitHub](https://img.shields.io/badge/GitHub-09priyamgupta-black?logo=github)](https://github.com/09priyamgupta)
+
 ---
 
 ## License & Attribution
