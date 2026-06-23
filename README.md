@@ -13,6 +13,11 @@ RAPTOR is a vision-based autonomous landing system for precise UAV-to-ground-veh
 **Hardware-Validated Performance:**
 RAPTOR achieves **5.82 cm horizontal landing accuracy on a stationary AprilTag landing pad** using vision-based MPC control on a Raspberry Pi 5 + Pixhawk 6C embedded platform.
 
+
+
+[Vision based MPC control landing of drone on static landing pad](https://github.com/user-attachments/assets/0e1d8e47-279c-4d0c-805b-7be70437c054)
+
+
 ## Validation Phases
  
 ### ✅ Phase I: Simulation (COMPLETE)
